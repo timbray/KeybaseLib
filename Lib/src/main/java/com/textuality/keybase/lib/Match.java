@@ -29,7 +29,8 @@ public class Match {
         if (fingerprint.length() > 16) {
             fingerprint = fingerprint.substring(fingerprint.length() - 16);
         }
-        return fingerprint;
+        
+        return fingerprint.replace(" ", "").toUpperCase();
     }
     public String getUsername() throws KeybaseException{
         try {
@@ -47,8 +48,7 @@ public class Match {
     }
     public String getFingerprint() throws KeybaseException {
         try {
-            String fingerprint = JWalk.getString(mComponents, "key_fingerprint", "val");
-            return fingerprint.replace(" ", "").toUpperCase();
+            return JWalk.getString(mComponents, "key_fingerprint", "val");
         } catch (JSONException e) {
             throw KeybaseException.keybaseScrewup(e);
         }
