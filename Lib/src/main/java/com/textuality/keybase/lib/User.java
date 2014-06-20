@@ -19,8 +19,8 @@ public class User {
         }
         return new User(json);
     }
-    public static User findByMatchUser(Match match) throws KeybaseException {
-        return findByUsername(match.getUsername());
+    public static String keyForUsername(String username) throws KeybaseException {
+        return findByUsername(username).getKey();
     }
     private User(JSONObject json) {
         mJson = json;

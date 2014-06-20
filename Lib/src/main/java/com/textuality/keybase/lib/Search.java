@@ -28,18 +28,6 @@ public class Search {
         }
     }
 
-    /*
-    public static Match searchForKey(String key) throws KeybaseException {
-        Iterable<Match> matches = search(key);
-        for (Match match : matches) {
-            if (key.equals(match.keyID())) {
-                return match; 
-            }
-        }
-        return null;
-    }
-    */
-
     public static JSONObject getFromKeybase(String path, String query) throws KeybaseException {
         try {
             String url = "https://keybase.io/" + path + URLEncoder.encode(query, "utf8");
