@@ -30,7 +30,7 @@ public class Match {
             fingerprint = fingerprint.substring(fingerprint.length() - 16);
         }
 
-        return fingerprint.replace(" ", "").toUpperCase();
+        return fingerprint.replace(" ", "");
     }
     public String getUsername() throws KeybaseException{
         try {
