@@ -43,7 +43,7 @@ public class Match {
         try {
             return JWalk.getString(mComponents, "full_name", "val");
         } catch (JSONException e) {
-            throw KeybaseException.keybaseScrewup(e);
+            return null;
         }
     }
     public String getFingerprint() throws KeybaseException {
