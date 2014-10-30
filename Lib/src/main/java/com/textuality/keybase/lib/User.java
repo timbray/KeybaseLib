@@ -22,6 +22,19 @@ public class User {
     public static String keyForUsername(String username) throws KeybaseException {
         return findByUsername(username).getKey();
     }
+    public static User findByFingerprint(String fingerprint) throws KeybaseException {
+        JSONObject json = Search.getFromKeybase("_/api/1.0/user/lookup.json?key_fingerprint=", fingerprint);
+        try {
+            JSONArray them = JWalk.getArray(json, "them");
+            if (them.length() != 1) {
+                throw KeybaseException.queryScrewup("Key retrieval produced " + them.length() +
+                        " results");
+            }
+            return new User(them.getJSONObject(0));
+        } catch (JSONException e) {
+            throw KeybaseException.keybaseScrewup(e);
+        }
+    }
     private User(JSONObject json) {
         mJson = json;
     }
@@ -60,6 +73,8 @@ public class User {
                 return new Proof(mArray.getJSONObject(++mLastIndex));
             } catch (JSONException e) {
                 throw new RuntimeException(KeybaseException.keybaseScrewup(e));
+            } catch (KeybaseException e) {
+                throw new RuntimeException(e);
             }
         }
 
