@@ -31,7 +31,6 @@ public class Search {
     public static JSONObject getFromKeybase(String path, String query) throws KeybaseException {
         try {
             String url = "https://keybase.io/" + path + URLEncoder.encode(query, "utf8");
-            System.out.println(" URL: " + url);
 
             URL realUrl = new URL(url);
             HttpURLConnection conn = (HttpURLConnection) realUrl.openConnection();
@@ -59,7 +58,7 @@ public class Search {
         }
     }
 
-    private static String snarf(InputStream in) 
+    public static String snarf(InputStream in)
             throws IOException {
         byte[] buf = new byte[1024];
         int count = 0;

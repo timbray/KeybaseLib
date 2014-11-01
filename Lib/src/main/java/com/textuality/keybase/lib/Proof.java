@@ -12,6 +12,7 @@ public class Proof {
     private final int mProofType;
 
     private final static Hashtable<String, Integer> sProofTypes;
+    private final static Hashtable<String, String> sPrettyNames;
     public final static int PROOF_TYPE_TWITTER = 0;
     public final static int PROOF_TYPE_GITHUB = 1;
     public final static int PROOF_TYPE_DNS = 2;
@@ -29,6 +30,14 @@ public class Proof {
         sProofTypes.put("hackernews", PROOF_TYPE_HACKERNEWS);
         sProofTypes.put("coinbase", PROOF_TYPE_COINBASE);
         sProofTypes.put("reddit", PROOF_TYPE_REDDIT);
+        sPrettyNames = new Hashtable<String, String>();
+        sPrettyNames.put("twitter", "Twitter");
+        sPrettyNames.put("github", "GitHub");
+        sPrettyNames.put("dns", "DNS");
+        sPrettyNames.put("generic_web_site", "Web site");
+        sPrettyNames.put("hackernews", "Hacker News");
+        sPrettyNames.put("coinbase", "Coinbase");
+        sPrettyNames.put("reddit", "Reddit");
     }
 
     public Proof(JSONObject json) throws KeybaseException {
@@ -45,6 +54,10 @@ public class Proof {
         }
     }
 
+    public String getmNametag() {
+        return mNametag;
+    }
+
     public String getHandle() {
         String handle = mNametag;
         if ("twitter".equals(mProofType)) {
@@ -59,12 +72,24 @@ public class Proof {
         return getField("proof_id");
     }
 
+    public String getSigId() throws KeybaseException {
+        return getField("sig_id");
+    }
+
     public int getType() {
         return mProofType;
     }
 
+    public String getPrettyName() throws KeybaseException {
+        return sPrettyNames.get(getField("proof_type"));
+    }
+
     public String getServiceUrl() throws KeybaseException {
         return getField("service_url");
+    }
+
+    public String getHumanUrl() throws KeybaseException {
+        return getField("human_url");
     }
 
     public String toString() {
