@@ -17,25 +17,23 @@
 
 package com.textuality.keybase.lib.prover;
 
+import android.util.Log;
+
 import com.textuality.keybase.lib.JWalk;
 import com.textuality.keybase.lib.KeybaseException;
 import com.textuality.keybase.lib.Proof;
-import com.textuality.keybase.lib.Search;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 
-public class GitHub extends Prover {
+public class Website extends Prover {
 
-    public GitHub(Proof proof) {
+    public Website(Proof proof) {
         super(proof);
     }
-    private static final String[] sApiBases = {
-            "https://gist.githubusercontent.com/", "https://gist.github.com/"
-    };
 
     @Override
     public boolean fetchProofData() {
@@ -43,12 +41,11 @@ public class GitHub extends Prover {
         try {
             JSONObject sigJSON = readSig(mProof.getSigId());
 
-            // find the URL for the markdown form of the gist
-            String markdownURL = JWalk.getString(sigJSON, "api_url");
-            String nametag = mProof.getmNametag();
+            // find the .well-known URL
+            String wellKnownUrl = JWalk.getString(sigJSON, "api_url");
 
-            // fetch the gist
-            Fetch fetch = new Fetch(markdownURL);
+            // fetch the proof
+            Fetch fetch = new Fetch(wellKnownUrl);
             String problem = fetch.problem();
             if (problem != null) {
                 mLog.add(problem);
@@ -57,21 +54,21 @@ public class GitHub extends Prover {
 
             // sanity-check per Keybase guidance
             String actualUrl = fetch.getActualUrl();
-            String apiNametag = null;
-            for (String base : sApiBases) {
-                if (actualUrl.startsWith(base)) {
-                    apiNametag = actualUrl.substring(base.length());
-                    apiNametag = apiNametag.substring(0, apiNametag.indexOf('/'));
-                }
-            }
-            if ((apiNametag == null) || !apiNametag.equalsIgnoreCase(nametag)) {
-                mLog.add("Bogus GitHub API URL: " + markdownURL);
+
+            // paranoia. URL has to be of the form https?//<nametag>/.well-known/keybase.txt
+            String nametag = mProof.getmNametag();
+            URL url = new URL(actualUrl);
+            String scheme = url.getProtocol();
+            String host = url.getHost();
+            if ((!(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) ||
+                    (!host.equalsIgnoreCase(nametag))) {
+                mLog.add("Proof either doesn’t come from " + nametag + " or isn’t at an HTTP URL");
                 return false;
             }
 
             // verify that message appears in gist
             if (!fetch.getBody().contains(mPgpMessage)) {
-                mLog.add("GitHub gist doesn’t contain signed PGP message");
+                mLog.add("Domain name claiming post doesn’t contain signed PGP message");
                 return false;
             }
 
@@ -82,6 +79,9 @@ public class GitHub extends Prover {
             return false;
         } catch (JSONException e) {
             mLog.add("Broken JSON message: " + e.getLocalizedMessage());
+            return false;
+        } catch (MalformedURLException e) {
+            mLog.add("Malformed proof URL");
             return false;
         }
     }
