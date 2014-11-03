@@ -33,8 +33,6 @@ import java.security.NoSuchAlgorithmException;
 
 public class Twitter extends Prover {
 
-    private String mShortenedMessageHash = null;
-
     public Twitter(Proof proof) {
         super(proof);
     }
@@ -89,11 +87,10 @@ public class Twitter extends Prover {
 
         } catch (KeybaseException e) {
             mLog.add("Keybase API problem: " + e.getLocalizedMessage());
-            return false;
         } catch (JSONException e) {
             mLog.add("Broken JSON message: " + e.getLocalizedMessage());
-            return false;
         }
+        return false;
     }
 
     @Override
@@ -101,24 +98,4 @@ public class Twitter extends Prover {
         return true;
     }
 
-    @Override
-    public String checkRawMessageBytes(InputStream in) {
-        try {
-            MessageDigest digester = MessageDigest.getInstance("SHA-256");
-            byte[] buffer = new byte[8192];
-            int byteCount;
-            while ((byteCount = in.read(buffer)) > 0) {
-                digester.update(buffer, 0, byteCount);
-            }
-            String digest = Base64.encodeToString(digester.digest(), Base64.URL_SAFE);
-            if (!digest.startsWith(mShortenedMessageHash)) {
-                return "Proof tweet doesn’t contain correct encoded message.";
-            }
-        } catch (NoSuchAlgorithmException e) {
-            return "SHA-256h has not available";
-        } catch (IOException e) {
-            return "Error checking raw message: " + e.getLocalizedMessage();
-        }
-        return null;
-    }
 }

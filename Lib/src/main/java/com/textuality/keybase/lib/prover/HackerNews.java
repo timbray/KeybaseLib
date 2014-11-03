@@ -14,28 +14,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 package com.textuality.keybase.lib.prover;
+
+import android.util.Base64;
 
 import com.textuality.keybase.lib.JWalk;
 import com.textuality.keybase.lib.KeybaseException;
 import com.textuality.keybase.lib.Proof;
-import com.textuality.keybase.lib.Search;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.net.HttpURLConnection;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
-public class GitHub extends Prover {
+public class HackerNews extends Prover {
 
-    public GitHub(Proof proof) {
+    public HackerNews(Proof proof) {
         super(proof);
     }
-    private static final String[] sApiBases = {
-            "https://gist.githubusercontent.com/", "https://gist.github.com/"
-    };
 
     @Override
     public boolean fetchProofData() {
@@ -43,35 +44,33 @@ public class GitHub extends Prover {
         try {
             JSONObject sigJSON = readSig(mProof.getSigId());
 
-            // find the URL for the markdown form of the gist
-            String markdownURL = JWalk.getString(sigJSON, "api_url");
-            String nametag = mProof.getmNametag();
+            // the magic string is the base64 of the SHA of the raw message
+            mShortenedMessageHash = JWalk.getString(sigJSON, "sig_id_short");
 
-            // fetch the gist
-            Fetch fetch = new Fetch(markdownURL);
+            // The api form is off at firebasio, so we’ll use the proof URL
+            String hnUrl = mProof.getProofUrl();
+
+            Fetch fetch = new Fetch(hnUrl);
             String problem = fetch.problem();
             if (problem != null) {
                 mLog.add(problem);
                 return false;
             }
 
-            // sanity-check per Keybase guidance
-            String actualUrl = fetch.getActualUrl();
-            String apiNametag = null;
-            for (String base : sApiBases) {
-                if (actualUrl.startsWith(base)) {
-                    apiNametag = actualUrl.substring(base.length());
-                    apiNametag = apiNametag.substring(0, apiNametag.indexOf('/'));
-                }
-            }
-            if ((apiNametag == null) || !apiNametag.equalsIgnoreCase(nametag)) {
-                mLog.add("Bogus GitHub API URL: " + markdownURL);
+            // paranoia. source has to have the right host and have malgorithms in the path
+            String nametag = mProof.getmNametag();
+            URL url = new URL(hnUrl);
+            String scheme = url.getProtocol();
+            String host = url.getHost();
+            if ((!(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) ||
+                    (!host.equalsIgnoreCase("news.ycombinator.com")) ||
+                    (!hnUrl.contains("id=" + nametag))) {
+                mLog.add("Proof either doesn’t come from news.ycombinator.com or isn’t specific to " + nametag);
                 return false;
             }
 
-            // verify that message appears in gist
-            if (!fetch.getBody().contains(mPgpMessage)) {
-                mLog.add("GitHub gist doesn’t contain signed PGP message");
+            if (!fetch.getBody().contains(mShortenedMessageHash)) {
+                mLog.add("Hacker News post doesn’t contain signed PGP message");
                 return false;
             }
 
@@ -81,7 +80,15 @@ public class GitHub extends Prover {
             mLog.add("Keybase API problem: " + e.getLocalizedMessage());
         } catch (JSONException e) {
             mLog.add("Broken JSON message: " + e.getLocalizedMessage());
+        } catch (MalformedURLException e) {
+            mLog.add("Malformed URL for proof post");
         }
         return false;
     }
+
+    @Override
+    public boolean rawMessageCheckRequired() {
+        return true;
+    }
+
 }

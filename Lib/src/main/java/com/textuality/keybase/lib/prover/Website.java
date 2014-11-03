@@ -55,7 +55,7 @@ public class Website extends Prover {
             // sanity-check per Keybase guidance
             String actualUrl = fetch.getActualUrl();
 
-            // paranoia. URL has to be of the form https?//<nametag>/.well-known/keybase.txt
+            // paranoia. source has to have the right host
             String nametag = mProof.getmNametag();
             URL url = new URL(actualUrl);
             String scheme = url.getProtocol();
@@ -76,13 +76,11 @@ public class Website extends Prover {
 
         } catch (KeybaseException e) {
             mLog.add("Keybase API problem: " + e.getLocalizedMessage());
-            return false;
         } catch (JSONException e) {
             mLog.add("Broken JSON message: " + e.getLocalizedMessage());
-            return false;
         } catch (MalformedURLException e) {
             mLog.add("Malformed proof URL");
-            return false;
         }
+        return false;
     }
 }
