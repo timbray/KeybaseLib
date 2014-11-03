@@ -92,8 +92,11 @@ public class Proof {
         return getField("human_url");
     }
 
+    public String getProofUrl() throws KeybaseException {
+        return getField("proof_url");
+    }
+
     public String toString() {
         return mJson.toString();
     }
-    
 }

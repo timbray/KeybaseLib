@@ -8,6 +8,7 @@ import com.textuality.keybase.lib.Search;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,7 +17,10 @@ import java.util.List;
  * 1. call fetchProofData(), which will exhibit network latency. If it returns false,
  *    an explanation can be found in the log.
  * 2. decrypt the PGP message, check that it’s signed with the right fingerprint
- * 3. Pass the message to validate(), which may exhibit crypto latency
+ * 3. call rawMessageCheckRequired() and if it returns true, feed the raw (de-armored) bytes
+ *    of the message to checkRawMessageBytes(). If it returns null that’s OK.  Otherwise it
+ *    returns a message suitable for public display as to what went wrong
+ * 4. Pass the message to validate(), which may exhibit crypto latency
  */
 public abstract class Prover {
 
@@ -27,7 +31,7 @@ public abstract class Prover {
 
     public static Prover findProverFor(Proof proof) {
         switch (proof.getType()) {
-            case Proof.PROOF_TYPE_TWITTER: return null;
+            case Proof.PROOF_TYPE_TWITTER: return new Twitter(proof);
             case Proof.PROOF_TYPE_GITHUB: return new GitHub(proof);
             case Proof.PROOF_TYPE_DNS: return null;
             case Proof.PROOF_TYPE_WEB_SITE: return null;
@@ -69,5 +73,13 @@ public abstract class Prover {
         mLog.add("Extracted payload & message from sig");
 
         return sigJSON;
+    }
+
+    public boolean rawMessageCheckRequired() {
+        return false;
+    }
+
+    public String checkRawMessageBytes(InputStream in) {
+        return null;
     }
 }

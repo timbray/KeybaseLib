@@ -27,6 +27,7 @@ public class Fetch {
                 mActualUrl = urlString;
                 URL url = new URL(urlString);
                 conn = (HttpURLConnection) url.openConnection();
+                conn.addRequestProperty("User-Agent", "Keybase Java client, github.com/timbray/KeybaseLib");
                 conn.setConnectTimeout(5000); // TODO: Reasonable values
                 conn.setReadTimeout(25000);
                 conn.connect();
