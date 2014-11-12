@@ -20,20 +20,13 @@ package com.textuality.keybase.lib.prover;
 import com.textuality.keybase.lib.JWalk;
 import com.textuality.keybase.lib.KeybaseException;
 import com.textuality.keybase.lib.Proof;
-import com.textuality.keybase.lib.Search;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.net.HttpURLConnection;
-import java.net.URL;
-
 public class GitHub extends Prover {
 
-    public GitHub(Proof proof) {
-        super(proof);
-    }
-    private static final String[] sApiBases = {
+    private static final String[] sAllowedApiBases = {
             "https://gist.githubusercontent.com/", "https://gist.github.com/"
     };
 
@@ -45,7 +38,7 @@ public class GitHub extends Prover {
 
             // find the URL for the markdown form of the gist
             String markdownURL = JWalk.getString(sigJSON, "api_url");
-            String nametag = mProof.getmNametag();
+            String nametag = mProof.getNametag();
 
             // fetch the gist
             Fetch fetch = new Fetch(markdownURL);
@@ -55,16 +48,26 @@ public class GitHub extends Prover {
                 return false;
             }
 
-            // sanity-check per Keybase guidance
+            // Paranoid Interlude:
+            // Let’s make sure both the original url and the actual (after redirects) come
+            //  from one of the GitHub hosts listed above in sAllowedApiBases, and that the apiUrl
+            //  actually includes the person’s nametag (which at GitHub is sometimes capitalized,
+            //  sometimes not)
+            //
             String actualUrl = fetch.getActualUrl();
             String apiNametag = null;
-            for (String base : sApiBases) {
+            boolean baseUriOK = false, redirectUrlOk = false;
+            for (String base : sAllowedApiBases) {
                 if (actualUrl.startsWith(base)) {
+                    redirectUrlOk = true;
                     apiNametag = actualUrl.substring(base.length());
                     apiNametag = apiNametag.substring(0, apiNametag.indexOf('/'));
                 }
+                if (markdownURL.startsWith(base)) {
+                    baseUriOK = true;
+                }
             }
-            if ((apiNametag == null) || !apiNametag.equalsIgnoreCase(nametag)) {
+            if (!(baseUriOK && redirectUrlOk && apiNametag.equalsIgnoreCase(nametag))) {
                 mLog.add("Bogus GitHub API URL: " + markdownURL);
                 return false;
             }
@@ -83,5 +86,9 @@ public class GitHub extends Prover {
             mLog.add("Broken JSON message: " + e.getLocalizedMessage());
         }
         return false;
+    }
+
+    public GitHub(Proof proof) {
+        super(proof);
     }
 }

@@ -17,8 +17,6 @@
 
 package com.textuality.keybase.lib.prover;
 
-import android.util.Log;
-
 import com.textuality.keybase.lib.JWalk;
 import com.textuality.keybase.lib.KeybaseException;
 import com.textuality.keybase.lib.Proof;
@@ -52,23 +50,25 @@ public class Website extends Prover {
                 return false;
             }
 
-            // sanity-check per Keybase guidance
             String actualUrl = fetch.getActualUrl();
 
-            // paranoia. source has to have the right host
-            String nametag = mProof.getmNametag();
+            // Paranoid Interlude:
+            // A bad guy who can’t post to the site might still be able to squeeze in a redirect
+            //  to somewhere else, so let’s ensure that the data is really coming from the site
+            //
+            String nametag = mProof.getNametag();
             URL url = new URL(actualUrl);
             String scheme = url.getProtocol();
             String host = url.getHost();
-            if ((!(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) ||
-                    (!host.equalsIgnoreCase(nametag))) {
+            if (!(scheme.equals("http") || scheme.equals("https")) &&
+                    host.equals(nametag)) {
                 mLog.add("Proof either doesn’t come from " + nametag + " or isn’t at an HTTP URL");
                 return false;
             }
 
             // verify that message appears in gist
             if (!fetch.getBody().contains(mPgpMessage)) {
-                mLog.add("Domain name claiming post doesn’t contain signed PGP message");
+                mLog.add("Website claiming post doesn’t contain signed PGP message");
                 return false;
             }
 
@@ -82,5 +82,10 @@ public class Website extends Prover {
             mLog.add("Malformed proof URL");
         }
         return false;
+    }
+
+    @Override
+    public String getPresenceLabel() throws KeybaseException {
+        return mProof.getNametag();
     }
 }

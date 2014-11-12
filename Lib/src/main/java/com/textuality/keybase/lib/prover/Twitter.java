@@ -16,9 +16,6 @@
  */
 package com.textuality.keybase.lib.prover;
 
-import android.util.Base64;
-import android.util.Log;
-
 import com.textuality.keybase.lib.JWalk;
 import com.textuality.keybase.lib.KeybaseException;
 import com.textuality.keybase.lib.Proof;
@@ -26,10 +23,8 @@ import com.textuality.keybase.lib.Proof;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 public class Twitter extends Prover {
 
@@ -40,6 +35,7 @@ public class Twitter extends Prover {
     @Override
     public boolean fetchProofData() {
 
+        String tweetUrl = null;
         try {
             JSONObject sigJSON = readSig(mProof.getSigId());
 
@@ -47,7 +43,7 @@ public class Twitter extends Prover {
             mShortenedMessageHash = JWalk.getString(sigJSON, "sig_id_short");
 
             // find the tweet's url and fetch it
-            String tweetUrl = mProof.getProofUrl();
+            tweetUrl = mProof.getProofUrl();
             Fetch fetch = new Fetch(tweetUrl);
             String problem = fetch.problem();
             if (problem != null) {
@@ -55,7 +51,25 @@ public class Twitter extends Prover {
                 return false;
             }
 
-            // now let's dig through the tweet
+            // Paranoid Interlude:
+            // 1. It has to be a tweet https://twitter.com/<nametag>/status/\d+
+            // 2. the magic string has to appear in the <title>; we’re worried that
+            //    someone could @-reply and fake us out with the magic string down in someone
+            //    else’s tweet
+
+            URL suspectUrl = new URL(tweetUrl);
+            String scheme = suspectUrl.getProtocol();
+            String host = suspectUrl.getHost();
+            String path = suspectUrl.getPath();
+            String nametag = mProof.getNametag();
+            if (!(scheme.equals("https") &&
+                    host.equals("twitter.com") &&
+                    path.startsWith("/" + nametag + "/status/") &&
+                    endsWithDigits(path))) {
+                mLog.add("Unacceptable Twitter proof Url: " + tweetUrl);
+            }
+
+            // dig through the tweet to find the magic string in the <title>
             String tweet = fetch.getBody();
 
             // make sure we’re looking only through the header
@@ -89,8 +103,18 @@ public class Twitter extends Prover {
             mLog.add("Keybase API problem: " + e.getLocalizedMessage());
         } catch (JSONException e) {
             mLog.add("Broken JSON message: " + e.getLocalizedMessage());
+        } catch (MalformedURLException e) {
+            mLog.add("Unparsable tweet URL: " + tweetUrl);
         }
         return false;
+    }
+
+    private boolean endsWithDigits(String path) {
+        int i = path.length() - 1;
+        while (i >= 0 && Character.isDigit(path.charAt(i))) {
+            i--;
+        }
+        return ('/' == path.charAt(i));
     }
 
     @Override

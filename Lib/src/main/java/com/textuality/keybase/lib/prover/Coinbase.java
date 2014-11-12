@@ -14,9 +14,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package com.textuality.keybase.lib.prover;
 
-import com.textuality.keybase.lib.JWalk;
 import com.textuality.keybase.lib.KeybaseException;
 import com.textuality.keybase.lib.Proof;
 
@@ -26,7 +26,7 @@ import org.json.JSONObject;
 import java.net.MalformedURLException;
 import java.net.URL;
 
-public class HackerNews extends Prover {
+public class Coinbase extends Prover {
 
     @Override
     public boolean fetchProofData() {
@@ -34,13 +34,10 @@ public class HackerNews extends Prover {
         try {
             JSONObject sigJSON = readSig(mProof.getSigId());
 
-            // the magic string is the base64 of the SHA of the raw message
-            mShortenedMessageHash = JWalk.getString(sigJSON, "sig_id_short");
+            String proofUrl = mProof.getProofUrl();
 
-            // The api form is off at firebasio, so we’ll use the proof URL
-            String hnUrl = mProof.getProofUrl();
-
-            Fetch fetch = new Fetch(hnUrl);
+            // fetch the post
+            Fetch fetch = new Fetch(proofUrl);
             String problem = fetch.problem();
             if (problem != null) {
                 mLog.add(problem);
@@ -48,21 +45,26 @@ public class HackerNews extends Prover {
             }
 
             // Paranoid Interlude:
-            // Let’s make sure source has right host and there's an id=<nametag> in the path
+            // Let’s make sure the URL is of the form https://coinbase.com/<nametag>/public-key
+            //  and the actual host after redirects is coinbase
             //
-            String nametag = mProof.getNametag();
-            URL url = new URL(hnUrl);
-            String scheme = url.getProtocol();
-            String host = url.getHost();
-            if (!((scheme.equals("http") || scheme.equals("https")) &&
-                    host.equals("news.ycombinator.com") &&
-                    hnUrl.contains("id=" + nametag))) {
-                mLog.add("Proof either doesn’t come from news.ycombinator.com or isn’t specific to " + nametag);
+            URL url = new URL(proofUrl);
+            if (!(url.getProtocol().equals("https") &&
+                    url.getHost().equals("coinbase.com") &&
+                    url.getPath().equals("/" + mProof.getHandle() + "/public-key"))) {
+                mLog.add("Bogus Coinbase proof URL: " + proofUrl);
+                return false;
+            }
+            url = new URL(fetch.getActualUrl());
+            if (!url.getHost().equals("coinbase.com")) {
+                mLog.add("Coinbase proof doesn’t come from coinbase.com: " + fetch.getActualUrl());
                 return false;
             }
 
-            if (!(fetch.getBody().contains(mShortenedMessageHash))) {
-                mLog.add("Hacker News post doesn’t contain signed PGP message");
+            // verify that message appears in body, which coinbase messes up with \r’s
+            String body = fetch.getBody().replace("\r", "");
+            if (!body.contains(mPgpMessage)) {
+                mLog.add("Coinbase proof doesn’t contain signed PGP message");
                 return false;
             }
 
@@ -73,29 +75,12 @@ public class HackerNews extends Prover {
         } catch (JSONException e) {
             mLog.add("Broken JSON message: " + e.getLocalizedMessage());
         } catch (MalformedURLException e) {
-            mLog.add("Malformed URL for proof post");
+            mLog.add("Malformed Coinbase proof URL");
         }
         return false;
     }
 
-    @Override
-    public String getPresenceLabel() throws KeybaseException {
-        String answer = mProof.getServiceUrl();
-        try {
-            URL u = new URL(answer);
-            answer = u.getHost() + u.getPath() + '?' + u.getQuery();
-        } catch (MalformedURLException e) {
-            answer = super.getPresenceLabel();
-        }
-        return answer;
-    }
-
-    @Override
-    public boolean rawMessageCheckRequired() {
-        return true;
-    }
-
-    public HackerNews(Proof proof) {
+    public Coinbase(Proof proof) {
         super(proof);
     }
 }

@@ -29,21 +29,39 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Supports proof verification.  How to use:
- * 1. call fetchProofData(), which will exhibit network latency. If it returns false,
- *    an explanation can be found in the log.
- * 2. fetch the PGP message with getPgpMessage, check that it’s signed with the right fingerprint
- * 3. call rawMessageCheckRequired() and if it returns true, feed the raw (de-armored) bytes
- *    of the message to checkRawMessageBytes(). If it returns null that’s OK.  Otherwise it
- *    returns a message suitable for public display as to what went wrong. This may
- *    exhibit crypto latency.
- * 4. Pass the message to validate(), which should have no real latency
+ * Supports Keybase proof verification.  This is self-contained with no dependencies, except on
+ *  the caller.  Keybase proof checking requires checking OpenPGP signatures and fetching DNS
+ *  TXT records, but libraries to do these things can be complex and heavyweight.  Therefore
+ *  this function requires that the caller provide signature-checking and DNS-fetching functions.
+ *
+ * A note on signature checking.  Keybase proofs are ASCII-armored OpenPGP compressed messages
+ *  with a signature.  That means, in terms of OpenPGP packet types, the message contains a
+ *  Compressed Data packet (tag=8).  That in turn contains a one-pass signature packet (tag=4),
+ *  a Literal Data packet (tag=11), and a signature packet (tag=2).  You need to do the
+ *  equivalent of pgp --decrypt, validating that the signature is correct and the signing key
+ *  is the one the proof concerns.
+ *
+ * How to use:
+ * 1. call fetchProofData(), which will exhibit network latency. If it returns false the proof
+ *    verification failed; an explanation can be found in the log.
+ * 2. fetch the PGP message with getPgpMessage(), check that it’s signed with the right fingerprint
+ *    (see above).
+ * 3. Call dnsTxtCheckRequired() and if it returns non-null, the return value is a domain name;
+ *    retrieve TXT records from that domain and pass them to checkDnsTxt(); if it returns false
+ *    the proof verification failed; an explanation can be found in the log.
+ * 4. call rawMessageCheckRequired() and if it returns true, feed the raw (de-armored) bytes
+ *    of the message to checkRawMessageBytes(). if it returns false the proof verification failed;
+ *    an explanation can be found in the log. This may exhibit crypto latency.
+ * 5. Pass the message to validate(), which should have no real latency.  If it returns false the
+ *    proof verification failed; an explanation can be found in the log.
  */
 public abstract class Prover {
 
@@ -57,11 +75,11 @@ public abstract class Prover {
         switch (proof.getType()) {
             case Proof.PROOF_TYPE_TWITTER: return new Twitter(proof);
             case Proof.PROOF_TYPE_GITHUB: return new GitHub(proof);
-            case Proof.PROOF_TYPE_DNS: return null;
+            case Proof.PROOF_TYPE_DNS: return new DNS(proof);
             case Proof.PROOF_TYPE_WEB_SITE: return new Website(proof);
             case Proof.PROOF_TYPE_HACKERNEWS: return new HackerNews(proof);
-            case Proof.PROOF_TYPE_COINBASE: return null;
-            case Proof.PROOF_TYPE_REDDIT: return null;
+            case Proof.PROOF_TYPE_COINBASE: return new Coinbase(proof);
+            case Proof.PROOF_TYPE_REDDIT: return new Reddit(proof);
             default: return null;
         }
     }
@@ -103,7 +121,7 @@ public abstract class Prover {
         return false;
     }
 
-    public String checkRawMessageBytes(InputStream in) {
+    public boolean checkRawMessageBytes(InputStream in) {
         try {
             MessageDigest digester = MessageDigest.getInstance("SHA-256");
             byte[] buffer = new byte[8192];
@@ -113,13 +131,43 @@ public abstract class Prover {
             }
             String digest = Base64.encodeToString(digester.digest(), Base64.URL_SAFE);
             if (!digest.startsWith(mShortenedMessageHash)) {
-                return "Proof tweet doesn’t contain correct encoded message.";
+                mLog.add("Proof post doesn’t contain correct encoded message.");
+                return false;
             }
+            return true;
         } catch (NoSuchAlgorithmException e) {
-            return "SHA-256h has not available";
+            mLog.add("SHA-256 not available");
         } catch (IOException e) {
-            return "Error checking raw message: " + e.getLocalizedMessage();
+            mLog.add("Error checking raw message: " + e.getLocalizedMessage());
         }
+        return false;
+    }
+
+    public String dnsTxtCheckRequired() {
         return null;
+    }
+    public boolean checkDnsTxt(List<List<byte[]>> records) {
+        return false;
+    }
+
+    /* A proof narrative needs the following strings:
+     *  a Url for the actual proof document (may be null, e.g. for DNS)
+     *  a Url for the person’s presence at the service  e.g. https://twitter.com/timbray
+     *  a name for the person's presence, e.g. twitter.com/timbray
+     */
+    public String getProofUrl() throws KeybaseException {
+        return mProof.getHumanUrl();
+    }
+    public String getPresenceUrl() throws KeybaseException {
+        return mProof.getServiceUrl();
+    }
+    public String getPresenceLabel() throws  KeybaseException {
+        String answer = mProof.getServiceUrl();
+        try {
+            URL u = new URL(answer);
+            answer = u.getHost() + u.getPath();
+        } catch (MalformedURLException e) {
+        }
+        return answer;
     }
 }

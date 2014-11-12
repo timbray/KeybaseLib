@@ -23,24 +23,22 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.List;
-import java.util.Map;
 
-/**
- * Created by twbray on 14-11-01.
- */
 public class Fetch {
 
     private String mProblem = null;
     private String mActualUrl = null;
     private String mBody = null;
 
+    public static final int REDIRECT_TRIES = 5;
+
     public Fetch(String urlString) {
 
         try {
             HttpURLConnection conn = null;
             int status = 0;
-            while (true) {
+            int redirects = 0;
+            while (redirects < REDIRECT_TRIES) {
                 mActualUrl = urlString;
                 URL url = new URL(urlString);
                 conn = (HttpURLConnection) url.openConnection();
@@ -50,8 +48,8 @@ public class Fetch {
                 conn.connect();
                 status = conn.getResponseCode();
                 if (status == 301) {
-                    Map<String, List<String>> headers = conn.getHeaderFields();
-                    urlString = headers.get("Location").get(0);
+                    redirects++;
+                    urlString = conn.getHeaderFields().get("Location").get(0);
                 } else {
                     break;
                 }

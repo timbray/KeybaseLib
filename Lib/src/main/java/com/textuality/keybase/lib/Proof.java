@@ -19,47 +19,26 @@ package com.textuality.keybase.lib;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.Hashtable;
-
 public class Proof {
-    
+
     private final JSONObject mJson;
     private final String mNametag;
     private final int mProofType;
 
-    private final static Hashtable<String, Integer> sProofTypes;
-    private final static Hashtable<String, String> sPrettyNames;
-    public final static int PROOF_TYPE_TWITTER = 0;
-    public final static int PROOF_TYPE_GITHUB = 1;
-    public final static int PROOF_TYPE_DNS = 2;
-    public final static int PROOF_TYPE_WEB_SITE = 3;
-    public final static int PROOF_TYPE_HACKERNEWS = 4;
-    public final static int PROOF_TYPE_COINBASE = 5;
-    public final static int PROOF_TYPE_REDDIT = 6;
-
-    static {
-        sProofTypes = new Hashtable<String, Integer>();
-        sProofTypes.put("twitter", PROOF_TYPE_TWITTER);
-        sProofTypes.put("github", PROOF_TYPE_GITHUB);
-        sProofTypes.put("dns", PROOF_TYPE_DNS);
-        sProofTypes.put("generic_web_site", PROOF_TYPE_WEB_SITE);
-        sProofTypes.put("hackernews", PROOF_TYPE_HACKERNEWS);
-        sProofTypes.put("coinbase", PROOF_TYPE_COINBASE);
-        sProofTypes.put("reddit", PROOF_TYPE_REDDIT);
-        sPrettyNames = new Hashtable<String, String>();
-        sPrettyNames.put("twitter", "Twitter");
-        sPrettyNames.put("github", "GitHub");
-        sPrettyNames.put("dns", "DNS");
-        sPrettyNames.put("generic_web_site", "Web site");
-        sPrettyNames.put("hackernews", "Hacker News");
-        sPrettyNames.put("coinbase", "Coinbase");
-        sPrettyNames.put("reddit", "Reddit");
-    }
+    public final static int PROOF_TYPE_UNKNOWN = -1;
+    public final static int PROOF_TYPE_COINBASE = 0;
+    public final static int PROOF_TYPE_DNS = 1;
+    public final static int PROOF_TYPE_GITHUB = 2;
+    public final static int PROOF_TYPE_HACKERNEWS = 3;
+    public final static int PROOF_TYPE_REDDIT = 4;
+    public final static int PROOF_TYPE_TWITTER = 5;
+    public final static int PROOF_TYPE_WEB_SITE = 6;
 
     public Proof(JSONObject json) throws KeybaseException {
+        // pre-compute these ones because they’re used in multiple popular methods
         mJson = json;
         mNametag = getField("nametag");
-        mProofType = sProofTypes.get(getField("proof_type"));
+        mProofType = findType(getField("proof_type"));
     }
 
     private String getField(String name) throws KeybaseException {
@@ -70,16 +49,22 @@ public class Proof {
         }
     }
 
-    public String getmNametag() {
+    public String getNametag() {
         return mNametag;
     }
 
     public String getHandle() {
         String handle = mNametag;
-        if ("twitter".equals(mProofType)) {
-            handle = "@" + mNametag;
-        } else if ("github".equals(mProofType)) {
-            handle = "github.com/" + mNametag;
+        switch (mProofType) {
+            case PROOF_TYPE_TWITTER:
+                handle = "@" + mNametag;
+                break;
+            case PROOF_TYPE_GITHUB:
+                handle = "github.com/" + mNametag;
+                break;
+            case PROOF_TYPE_COINBASE:
+                handle = mNametag.substring("coinbase/".length());
+                break;
         }
         return handle;
     }
@@ -96,16 +81,24 @@ public class Proof {
         return mProofType;
     }
 
-    public String getPrettyName() throws KeybaseException {
-        return sPrettyNames.get(getField("proof_type"));
-    }
-
-    public String getServiceUrl() throws KeybaseException {
-        return getField("service_url");
+    public String getPrettyName() {
+        switch (mProofType) {
+            case PROOF_TYPE_COINBASE: return "Coinbase";
+            case PROOF_TYPE_DNS: return "DNS";
+            case PROOF_TYPE_GITHUB: return "GitHub";
+            case PROOF_TYPE_HACKERNEWS: return "Hacker News";
+            case PROOF_TYPE_REDDIT: return "Reddit";
+            case PROOF_TYPE_TWITTER: return "Twitter";
+            case PROOF_TYPE_WEB_SITE: return "Web site";
+            default: return "Unknown";
+        }
     }
 
     public String getHumanUrl() throws KeybaseException {
         return getField("human_url");
+    }
+    public String getServiceUrl() throws KeybaseException {
+        return getField("service_url");
     }
 
     public String getProofUrl() throws KeybaseException {
@@ -114,5 +107,23 @@ public class Proof {
 
     public String toString() {
         return mJson.toString();
+    }
+
+    private int findType(String pType) {
+        switch (pType.charAt(0)) {
+            case 'c': return PROOF_TYPE_COINBASE;
+            case 'd': return PROOF_TYPE_DNS;
+            case 'g': {
+                switch (pType.charAt(1)) {
+                    case 'e': return PROOF_TYPE_WEB_SITE;
+                    case 'i': return PROOF_TYPE_GITHUB;
+                    default: return PROOF_TYPE_UNKNOWN;
+                }
+            }
+            case 'h': return PROOF_TYPE_HACKERNEWS;
+            case 'r': return PROOF_TYPE_REDDIT;
+            case 't': return PROOF_TYPE_TWITTER;
+            default: return PROOF_TYPE_UNKNOWN;
+        }
     }
 }

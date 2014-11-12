@@ -16,11 +16,11 @@
  */
 package com.textuality.keybase.lib;
 
-import java.util.Iterator;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.Iterator;
 
 public class User {
 
