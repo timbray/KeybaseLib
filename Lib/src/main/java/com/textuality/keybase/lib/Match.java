@@ -21,7 +21,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Set;
 
 public class Match {
     private final JSONObject mComponents;
@@ -86,18 +88,48 @@ public class Match {
     public List<String> getProofLabels() {
         ArrayList<String> labels = new ArrayList<String>();
         try {
-            labels.add("twitter.com/" + JWalk.getString(mComponents, "twitter", "val"));
+            labels.add("Twitter: @" + JWalk.getString(mComponents, "twitter", "val"));
         } catch (JSONException e) {
             // s'OK
         }
         try {
-            labels.add("github.com/" + JWalk.getString(mComponents, "github", "val"));
+            labels.add("GitHub: " + JWalk.getString(mComponents, "github", "val"));
+        } catch (JSONException e) {
+            // s'OK
+        }
+        try {
+            labels.add("Reddit: " + JWalk.getString(mComponents, "reddit", "val"));
+        } catch (JSONException e) {
+            // s'OK
+        }
+        try {
+            labels.add("Hacker News: " + JWalk.getString(mComponents, "hackernews", "val"));
+        } catch (JSONException e) {
+            // s'OK
+        }
+        try {
+            labels.add("Coinbase: " + JWalk.getString(mComponents, "coinbase", "val"));
         } catch (JSONException e) {
             // s'OK
         }
         try {
             JSONArray sites = JWalk.getArray(mComponents, "websites");
-            labels.add(JWalk.getString(sites.getJSONObject(0), "val"));
+            Hashtable<String, Integer> uniqueNames = new Hashtable<String, Integer>();
+            int i;
+            for (i = 0; i < sites.length(); i++) {
+                uniqueNames.put(JWalk.getString(sites.getJSONObject(i), "val"), 1);
+            }
+            Set<String> names = uniqueNames.keySet();
+            StringBuilder label = new StringBuilder("Web: ");
+            i = 0;
+            for (String name : names) {
+                label.append(name);
+                if (i < names.size() - 1) {
+                    label.append(", ");
+                }
+                i++;
+            }
+            labels.add(label.toString());
         } catch (JSONException e) {
             // s'OK
         }
