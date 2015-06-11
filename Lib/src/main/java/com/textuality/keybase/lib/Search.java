@@ -18,6 +18,9 @@ package com.textuality.keybase.lib;
 
 import android.util.Log;
 
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.Response;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -26,17 +29,20 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.Proxy;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.sql.Time;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.concurrent.TimeUnit;
 
 public class Search {
     
     private static final String TAG = "KEYBASE-LIB";
 
-    public static Iterable<Match> search(String query) throws KeybaseException {
-        JSONObject result = getFromKeybase("_/api/1.0/user/autocomplete.json?q=", query);
+    public static Iterable<Match> search(String query, Proxy proxy) throws KeybaseException {
+        JSONObject result = getFromKeybase("_/api/1.0/user/autocomplete.json?q=", query, proxy);
         try {
             return new MatchIterator(JWalk.getArray(result, "completions"));
         } catch (JSONException e) {
@@ -44,18 +50,32 @@ public class Search {
         }
     }
 
-    public static JSONObject getFromKeybase(String path, String query) throws KeybaseException {
+    public static JSONObject getFromKeybase(String path, String query, Proxy proxy) throws KeybaseException {
         try {
             String url = "https://keybase.io/" + path + URLEncoder.encode(query, "utf8");
 
             URL realUrl = new URL(url);
-            HttpURLConnection conn = (HttpURLConnection) realUrl.openConnection();
-            conn.setConnectTimeout(5000); // TODO: Reasonable values for keybase
-            conn.setReadTimeout(25000);
-            conn.connect();
-            int response = conn.getResponseCode();
+
+            OkHttpClient client = new OkHttpClient();
+            client.setProxy(proxy);
+
+            if (proxy != null) {
+                client.setConnectTimeout(30000, TimeUnit.MILLISECONDS);
+                client.setReadTimeout(40000, TimeUnit.MILLISECONDS);
+            } else {
+                client.setConnectTimeout(5000, TimeUnit.MILLISECONDS); // TODO: Reasonable values for keybase
+                client.setReadTimeout(25000, TimeUnit.MILLISECONDS);
+            }
+
+            tempIpTest(client);
+
+            Response resp = client.newCall(new Request.Builder().url(realUrl).build()).execute();
+
+            int response = resp.code();
+
+            String text = resp.body().string();
+
             if (response >= 200 && response < 300) {
-                String text = snarf(conn.getInputStream());
                 try {
                     JSONObject json = new JSONObject(text);
                     if (JWalk.getInt(json, "status", "code") != 0) {
@@ -66,12 +86,16 @@ public class Search {
                     throw KeybaseException.keybaseScrewup(e);
                 }
             } else {
-                String message = snarf(conn.getErrorStream());
-                throw KeybaseException.networkScrewup("Keybase.io query error (status=" + response + "): " + message);
+                throw KeybaseException.networkScrewup("Keybase.io query error (status=" + response + "): " + text);
             }
         } catch (Exception e) {
             throw KeybaseException.networkScrewup(e);
         }
+    }
+
+    public static void tempIpTest(OkHttpClient client) throws IOException {
+        Log.e("PHILIP","ipTest: "+ client.newCall(new Request.Builder().url("https://wtfismyip.com/text").build())
+                .execute().body().string());
     }
 
     public static String snarf(InputStream in)

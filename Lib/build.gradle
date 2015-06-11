@@ -1,5 +1,9 @@
 apply plugin: 'com.android.library'
 
+dependencies {
+    compile 'com.squareup.okhttp:okhttp:2.4.0'
+}
+
 android {
     compileSdkVersion rootProject.ext.compileSdkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion

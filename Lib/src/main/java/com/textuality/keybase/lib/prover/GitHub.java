@@ -24,6 +24,8 @@ import com.textuality.keybase.lib.Proof;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.net.Proxy;
+
 public class GitHub extends Prover {
 
     private static final String[] sAllowedApiBases = {
@@ -31,10 +33,10 @@ public class GitHub extends Prover {
     };
 
     @Override
-    public boolean fetchProofData() {
+    public boolean fetchProofData(Proxy proxy) {
 
         try {
-            JSONObject sigJSON = readSig(mProof.getSigId());
+            JSONObject sigJSON = readSig(mProof.getSigId(), proxy);
 
             // find the URL for the markdown form of the gist
             String markdownURL = JWalk.getString(sigJSON, "api_url");

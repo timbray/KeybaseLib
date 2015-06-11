@@ -24,15 +24,16 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.net.MalformedURLException;
+import java.net.Proxy;
 import java.net.URL;
 
 public class HackerNews extends Prover {
 
     @Override
-    public boolean fetchProofData() {
+    public boolean fetchProofData(Proxy proxy) {
 
         try {
-            JSONObject sigJSON = readSig(mProof.getSigId());
+            JSONObject sigJSON = readSig(mProof.getSigId(), proxy);
 
             // the magic string is the base64 of the SHA of the raw message
             mShortenedMessageHash = JWalk.getString(sigJSON, "sig_id_short");

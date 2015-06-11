@@ -30,6 +30,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.Proxy;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -91,7 +92,7 @@ public abstract class Prover {
         mProof = proof;
     }
 
-    abstract public boolean fetchProofData();
+    abstract public boolean fetchProofData(Proxy proxy);
 
     public String getPgpMessage() {
         return mPgpMessage;
@@ -109,10 +110,10 @@ public abstract class Prover {
         return mLog;
     }
 
-    JSONObject readSig(String sigId) throws JSONException, KeybaseException {
+    JSONObject readSig(String sigId, Proxy proxy) throws JSONException, KeybaseException {
 
         // fetch the sig
-        JSONObject sigJSON = Search.getFromKeybase("_/api/1.0/sig/get.json?sig_id=", sigId);
+        JSONObject sigJSON = Search.getFromKeybase("_/api/1.0/sig/get.json?sig_id=", sigId, proxy);
         mLog.add("Successfully retrieved sig from Keybase");
 
         sigJSON = JWalk.getArray(sigJSON, "sigs").getJSONObject(0);
