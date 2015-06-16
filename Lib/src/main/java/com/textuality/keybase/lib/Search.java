@@ -28,11 +28,9 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
 import java.net.Proxy;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.sql.Time;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
@@ -67,8 +65,6 @@ public class Search {
                 client.setReadTimeout(25000, TimeUnit.MILLISECONDS);
             }
 
-            tempIpTest(client);
-
             Response resp = client.newCall(new Request.Builder().url(realUrl).build()).execute();
 
             int response = resp.code();
@@ -79,7 +75,8 @@ public class Search {
                 try {
                     JSONObject json = new JSONObject(text);
                     if (JWalk.getInt(json, "status", "code") != 0) {
-                        throw KeybaseException.queryScrewup("Keybase.io query failed: " + path + "?" + query);
+                        throw KeybaseException.queryScrewup("Keybase.io query failed: " + path + "?" + query +
+                                " using proxy: " + proxy);
                     }
                     return json;
                 } catch (JSONException e) {
@@ -91,11 +88,6 @@ public class Search {
         } catch (Exception e) {
             throw KeybaseException.networkScrewup(e);
         }
-    }
-
-    public static void tempIpTest(OkHttpClient client) throws IOException {
-        Log.e("PHILIP","ipTest: "+ client.newCall(new Request.Builder().url("https://wtfismyip.com/text").build())
-                .execute().body().string());
     }
 
     public static String snarf(InputStream in)
