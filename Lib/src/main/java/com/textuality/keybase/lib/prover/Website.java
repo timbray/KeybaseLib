@@ -25,6 +25,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.net.MalformedURLException;
+import java.net.Proxy;
 import java.net.URL;
 
 public class Website extends Prover {
@@ -34,10 +35,10 @@ public class Website extends Prover {
     }
 
     @Override
-    public boolean fetchProofData() {
+    public boolean fetchProofData(Proxy proxy) {
 
         try {
-            JSONObject sigJSON = readSig(mProof.getSigId());
+            JSONObject sigJSON = readSig(mProof.getSigId(), proxy);
 
             // find the .well-known URL
             String wellKnownUrl = JWalk.getString(sigJSON, "api_url");

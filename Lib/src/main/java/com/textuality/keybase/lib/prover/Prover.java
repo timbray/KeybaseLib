@@ -30,6 +30,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.Proxy;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -52,15 +53,17 @@ import java.util.List;
  * How to use:
  * 1. call fetchProofData(), which will exhibit network latency. If it returns false the proof
  *    verification failed; an explanation can be found in the log.
- * 2. fetch the PGP message with getPgpMessage(), check that it’s signed with the right fingerprint
+ * 2. call checkFingerprint(), passing it the fingerprint of the key you’re checking up on; if
+ *    if it returns false the verification failed.
+ * 3. fetch the PGP message with getPgpMessage(), check that it’s signed with the right fingerprint
  *    (see above).
- * 3. Call dnsTxtCheckRequired() and if it returns non-null, the return value is a domain name;
+ * 4. Call dnsTxtCheckRequired() and if it returns non-null, the return value is a domain name;
  *    retrieve TXT records from that domain and pass them to checkDnsTxt(); if it returns false
  *    the proof verification failed; an explanation can be found in the log.
- * 4. call rawMessageCheckRequired() and if it returns true, feed the raw (de-armored) bytes
+ * 5. call rawMessageCheckRequired() and if it returns true, feed the raw (de-armored) bytes
  *    of the message to checkRawMessageBytes(). if it returns false the proof verification failed;
  *    an explanation can be found in the log. This may exhibit crypto latency.
- * 5. Pass the message to validate(), which should have no real latency.  If it returns false the
+ * 6. Pass the message to validate(), which should have no real latency.  If it returns false the
  *    proof verification failed; an explanation can be found in the log.
  */
 public abstract class Prover {
@@ -68,6 +71,7 @@ public abstract class Prover {
     String mPgpMessage;
     String mPayload;
     String mShortenedMessageHash;
+    String mFingerprintUsedInProof = null;
     final Proof mProof;
     final List<String> mLog = new ArrayList<String>();
 
@@ -88,10 +92,14 @@ public abstract class Prover {
         mProof = proof;
     }
 
-    abstract public boolean fetchProofData();
+    abstract public boolean fetchProofData(Proxy proxy);
 
     public String getPgpMessage() {
         return mPgpMessage;
+    }
+
+    public boolean checkFingerprint(String fingerprint) {
+        return fingerprint.equalsIgnoreCase(mFingerprintUsedInProof);
     }
 
     public boolean validate(String decryptedMessage) {
@@ -102,15 +110,16 @@ public abstract class Prover {
         return mLog;
     }
 
-    JSONObject readSig(String sigId) throws JSONException, KeybaseException {
+    JSONObject readSig(String sigId, Proxy proxy) throws JSONException, KeybaseException {
 
         // fetch the sig
-        JSONObject sigJSON = Search.getFromKeybase("_/api/1.0/sig/get.json?sig_id=", sigId);
+        JSONObject sigJSON = Search.getFromKeybase("_/api/1.0/sig/get.json?sig_id=", sigId, proxy);
         mLog.add("Successfully retrieved sig from Keybase");
 
         sigJSON = JWalk.getArray(sigJSON, "sigs").getJSONObject(0);
         mPayload = JWalk.getString(sigJSON, "payload_json");
         mPgpMessage = JWalk.getString(sigJSON, "sig");
+        mFingerprintUsedInProof = JWalk.getString(sigJSON, "fingerprint");
 
         mLog.add("Extracted payload & message from sig");
 
